@@ -116,26 +116,75 @@ def create_app(test_config=None):
         new_answer = body.get('answer', None)
         new_difficulty = body.get('difficulty', None)
         new_category = body.get('category', None)
+        searchTerm = body.get('searchTerm', None)
+
+        print('SEARCH TERM', searchTerm)
 
         try:
-            print('NEW QUESTIONS, ', new_question)
-            print('ANSWER, ', new_answer)
-            print('DIFFICULTY, ', new_difficulty)
-            print('CATEGORY, ', new_category)
-            question = Question(question=new_question, answer=new_answer,
-                                difficulty=str(new_difficulty), category=int(new_category))
+            if searchTerm:
+                print('J', searchTerm)
+                selection = Question.query.order_by(Question.id).filter(
+                    Question.question.ilike('%{}%'.format(searchTerm)))
+                current_questions = paginate_questions(request, selection)
 
-            print('QUESTION, ', question)
-            question.insert()
+                print('Current Questions', current_questions)
+                print('Total Questions', len(selection.all()))
 
-            selection = Question.query.order_by(Book.id).all()
-            current_questions = paginate_books(request, selection)
+                return jsonify({
+                    'success': True,
+                    'questions': current_questions,
+                    'total_questions': len(selection.all())
+                })
+            else:
+                question = Question(question=new_question, answer=new_answer,
+                                    difficulty=str(new_difficulty), category=int(new_category))
 
-            return jsonify({
-                'success': True,
-                'questions': current_questions,
-                'total_questions': len(Question.query.all()),
-            })
+                question.insert()
+
+                selection = Question.query.order_by(Question.id).all()
+                current_questions = paginate_questions(request, selection)
+
+                return jsonify({
+                    'success': True,
+                    'questions': current_questions,
+                    'total_questions': len(Question.query.all()),
+                })
+        except:
+            abort(422)
+
+    @ app.route('/quizzes', methods=['POST'])
+    def make_quiz():
+        body = request.get_json()
+
+        previous_questions = body.get('previous_questions', None)
+        quiz_category = body.get('quiz_category', None)
+
+        try:
+
+            if(quiz_category['id'] == 0):
+                quiz_questions = Question.query.all()
+            else:
+                quiz_questions = Question.query.filter(
+                    Question.category == quiz_category['id']).all()
+
+            possible_questions = []
+            for question in quiz_questions:
+                if question.id not in previous_questions:
+                    possible_questions.append(question.format())
+
+            if len(possible_questions) != 0:
+                print('LEN Questions: ', len(possible_questions))
+                final_q = random.choice(possible_questions)
+                return jsonify({
+                    'success': True,
+                    'question': final_q
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'question': False
+                })
+
         except:
             abort(422)
 
@@ -155,59 +204,20 @@ def create_app(test_config=None):
             "message": "unprocessable"
         }), 422
 
+    @ app.errorhandler(500)
+    def unprocessable(error):
+        return jsonify({
+            "success": False,
+            "error": 500,
+            "message": "Internal Server Error"
+        }), 500
+
+    @ app.errorhandler(400)
+    def unprocessable(error):
+        return jsonify({
+            "success": False,
+            "error": 400,
+            "message": "Bad Request Error"
+        }), 400
+
     return app
-
-  #   '''
-  # @TODO:
-  # Create an endpoint to handle GET requests
-  # for all available categories.
-  # '''
-
-  #   '''
-  # @TODO:
-  # Create an endpoint to POST a new question,
-  # which will require the question and answer text,
-  # category, and difficulty score.
-
-  # TEST: When you submit a question on the "Add" tab,
-  # the form will clear and the question will appear at the end of the last page
-  # of the questions list in the "List" tab.
-  # '''
-
-  #   '''
-  # @TODO:
-  # Create a POST endpoint to get questions based on a search term.
-  # It should return any questions for whom the search term
-  # is a substring of the question.
-
-  # TEST: Search by any phrase. The questions list will update to include
-  # only question that include that string within their question.
-  # Try using the word "title" to start.
-  # '''
-
-  #   '''
-  # @TODO:
-  # Create a GET endpoint to get questions based on category.
-
-  # TEST: In the "List" tab / main screen, clicking on one of the
-  # categories in the left column will cause only questions of that
-  # category to be shown.
-  # '''
-
-  #   '''
-  # @TODO:
-  # Create a POST endpoint to get questions to play the quiz.
-  # This endpoint should take category and previous question parameters
-  # and return a random questions within the given category,
-  # if provided, and that is not one of the previous questions.
-
-  # TEST: In the "Play" tab, after a user selects "All" or a category,
-  # one question at a time is displayed, the user is allowed to answer
-  # and shown whether they were correct or not.
-  # '''
-
-  #   '''
-  # @TODO:
-  # Create error handlers for all expected errors
-  # including 404 and 422.
-  # '''
