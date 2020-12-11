@@ -113,7 +113,8 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(data['message'], 'method not allowed')
 
     def test_get_question_search_with_results(self):
-        res = self.client().post('/questions', json={'searchTerm': 'Clay'})
+        res = self.client().post('/questions/search',
+                                 json={'searchTerm': 'Clay'})
         data = json.loads(res.data)
 
         self.assertEqual(res.status_code, 200)
