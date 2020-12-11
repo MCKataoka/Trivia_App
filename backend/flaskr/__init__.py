@@ -70,10 +70,10 @@ def create_app(test_config=None):
             'categories': category
         })
 
-    @app.route('/categories/<int:question_id>/questions')
-    def get_questions_by_category(question_id):
+    @app.route('/categories/<int:category_id>/questions')
+    def get_questions_by_category(category_id):
         selection = Question.query.order_by(
-            Question.id).filter(Question.category == question_id).all()
+            Question.id).filter(Question.category == category_id).all()
 
         current_questions = paginate_questions(request, selection)
         if len(current_questions) == 0:
@@ -83,7 +83,7 @@ def create_app(test_config=None):
             'success': True,
             'questions': current_questions,
             'total_questions': len(selection),
-            'current_category': question_id
+            'current_category': category_id
         })
 
     @app.route('/questions/<int:question_id>', methods=['DELETE'])
@@ -116,39 +116,41 @@ def create_app(test_config=None):
         new_answer = body.get('answer', None)
         new_difficulty = body.get('difficulty', None)
         new_category = body.get('category', None)
-        searchTerm = body.get('searchTerm', None)
-
-        print('SEARCH TERM', searchTerm)
 
         try:
-            if searchTerm:
-                print('J', searchTerm)
-                selection = Question.query.order_by(Question.id).filter(
-                    Question.question.ilike('%{}%'.format(searchTerm)))
-                current_questions = paginate_questions(request, selection)
 
-                print('Current Questions', current_questions)
-                print('Total Questions', len(selection.all()))
+            question = Question(question=new_question, answer=new_answer,
+                                difficulty=str(new_difficulty), category=int(new_category))
 
-                return jsonify({
-                    'success': True,
-                    'questions': current_questions,
-                    'total_questions': len(selection.all())
-                })
-            else:
-                question = Question(question=new_question, answer=new_answer,
-                                    difficulty=str(new_difficulty), category=int(new_category))
+            question.insert()
 
-                question.insert()
+            selection = Question.query.order_by(Question.id).all()
+            current_questions = paginate_questions(request, selection)
 
-                selection = Question.query.order_by(Question.id).all()
-                current_questions = paginate_questions(request, selection)
+            return jsonify({
+                'success': True,
+                'questions': current_questions,
+                'total_questions': len(Question.query.all()),
+            })
+        except:
+            abort(422)
 
-                return jsonify({
-                    'success': True,
-                    'questions': current_questions,
-                    'total_questions': len(Question.query.all()),
-                })
+    @app.route('/questions/search', methods=['POST'])
+    def search_question():
+        body = request.get_json()
+
+        searchTerm = body.get('searchTerm', None)
+
+        try:
+            selection = Question.query.order_by(Question.id).filter(
+                Question.question.ilike('%{}%'.format(searchTerm)))
+            current_questions = paginate_questions(request, selection)
+
+            return jsonify({
+                'success': True,
+                'questions': current_questions,
+                'total_questions': len(selection.all())
+            })
         except:
             abort(422)
 
@@ -173,7 +175,6 @@ def create_app(test_config=None):
                     possible_questions.append(question.format())
 
             if len(possible_questions) != 0:
-                print('LEN Questions: ', len(possible_questions))
                 final_q = random.choice(possible_questions)
                 return jsonify({
                     'success': True,
@@ -219,5 +220,13 @@ def create_app(test_config=None):
             "error": 400,
             "message": "Bad Request Error"
         }), 400
+
+    @ app.errorhandler(405)
+    def unprocessable(error):
+        return jsonify({
+            "success": False,
+            "error": 405,
+            "message": "method not allowed"
+        }), 405
 
     return app
