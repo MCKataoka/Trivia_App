@@ -123,7 +123,7 @@ class TriviaTestCase(unittest.TestCase):
 
     def test_get_question_search_without_results(self):
         res = self.client().post(
-            '/questions', json={'searchTerm': 'avowebion'})
+            '/questions/search', json={'searchTerm': 'avowebion'})
         data = json.loads(res.data)
 
         self.assertEqual(res.status_code, 200)
